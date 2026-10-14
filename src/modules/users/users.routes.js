@@ -1,9 +1,14 @@
-import express from 'express';
-import { signup, login } from './users.controller.js';
+import { Router } from 'express';
+import { signup, login, getProfile, updateProfile } from './users.controller.js';
+import { verifyToken } from '../../middleware/auth.middleware.js';
 
-const router = express.Router();
+const userRoutes = Router();
 
-router.post('/api/auth/signup', signup);
-router.post('/api/auth/login', login);
+userRoutes.post('/api/auth/signup', signup);
+userRoutes.post('/api/auth/login', login);
 
-export const userRoutes = router;
+
+userRoutes.get('/api/users/me', verifyToken, getProfile);
+userRoutes.put('/api/users/me', verifyToken, updateProfile);
+
+export { userRoutes };
