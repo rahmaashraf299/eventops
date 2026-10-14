@@ -43,7 +43,6 @@ export const createEvent = async (req, res) => {
   }
 };
 
-// Temporary placeholders until we implement each function
 
 export const getAllEvents = async (req, res) => {
     try {
@@ -57,13 +56,11 @@ export const getAllEvents = async (req, res) => {
             sort
         } = req.query;
 
-        // Get public and scheduled events only
         const filter = {
             visibility: 'public',
             status: 'scheduled'
         };
 
-        // Search by event title
         if (search) {
             filter.title = {
                 $regex: search,
@@ -71,7 +68,6 @@ export const getAllEvents = async (req, res) => {
             };
         }
 
-        // Filter by venue
         if (venue) {
             filter.venue = {
                 $regex: venue,
@@ -79,7 +75,6 @@ export const getAllEvents = async (req, res) => {
             };
         }
 
-        // Filter by minimum price
         if (minPrice !== undefined) {
             filter.price = {
                 ...filter.price,
@@ -87,7 +82,6 @@ export const getAllEvents = async (req, res) => {
             };
         }
 
-        // Filter by maximum price
         if (maxPrice !== undefined) {
             filter.price = {
                 ...filter.price,
@@ -95,7 +89,6 @@ export const getAllEvents = async (req, res) => {
             };
         }
 
-        // Filter events by start date
         if (startsAfter || startsBefore) {
             filter.startsAt = {};
 
@@ -108,7 +101,6 @@ export const getAllEvents = async (req, res) => {
             }
         }
 
-        // Choose the sorting order
         let sortOption = { startsAt: 1 };
 
         if (sort === 'price') {
@@ -180,7 +172,6 @@ export const updateEvent = async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Check if the event ID is valid
     if (!id.match(/^[0-9a-fA-F]{24}$/)) {
       return res.status(400).json({
         success: false,
@@ -188,7 +179,6 @@ export const updateEvent = async (req, res) => {
       });
     }
 
-    // Check if the user is logged in
     if (!req.user) {
       return res.status(401).json({
         success: false,
@@ -196,7 +186,6 @@ export const updateEvent = async (req, res) => {
       });
     }
 
-    // Find the event owned by the logged-in organizer
     const event = await Event.findOne({
       _id: id,
       organizer: req.user._id,
@@ -209,14 +198,12 @@ export const updateEvent = async (req, res) => {
       });
     }
 
-    // Get the updated values
     const startsAt = new Date(req.body.startsAt ?? event.startsAt);
     const endsAt = new Date(req.body.endsAt ?? event.endsAt);
     const registrationDeadline = new Date(
       req.body.registrationDeadline ?? event.registrationDeadline,
     );
 
-    // Check the event dates
     if (endsAt <= startsAt) {
       return res.status(400).json({
         success: false,
@@ -232,10 +219,8 @@ export const updateEvent = async (req, res) => {
       });
     }
 
-    // Update the event fields
     Object.assign(event, req.body);
 
-    // Save the changes
     await event.save();
 
     return res.status(200).json({
@@ -256,7 +241,6 @@ export const cancelEvent = async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Check if the event ID is valid
     if (!id.match(/^[0-9a-fA-F]{24}$/)) {
       return res.status(400).json({
         success: false,
@@ -264,7 +248,6 @@ export const cancelEvent = async (req, res) => {
       });
     }
 
-    // Check if the user is logged in
     if (!req.user) {
       return res.status(401).json({
         success: false,
@@ -272,7 +255,6 @@ export const cancelEvent = async (req, res) => {
       });
     }
 
-    // Find the event owned by the logged-in organizer
     const event = await Event.findOne({
       _id: id,
       organizer: req.user._id,
@@ -285,7 +267,6 @@ export const cancelEvent = async (req, res) => {
       });
     }
 
-    // Check if the event is already cancelled
     if (event.status === "cancelled") {
       return res.status(400).json({
         success: false,
@@ -293,7 +274,6 @@ export const cancelEvent = async (req, res) => {
       });
     }
 
-    // Cancel the event
     event.status = "cancelled";
 
     await event.save();

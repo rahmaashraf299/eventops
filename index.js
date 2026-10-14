@@ -9,7 +9,7 @@ const port = 3000;
 app.use(express.json());
 
 app.get("/", (req, res) => {
-  res.send("EventOps Backend is Running! 🎉");
+  res.send("EventOps Backend is Running!");
 });
 app.use("/api/events", eventRoutes);
 const startServer = async () => {
