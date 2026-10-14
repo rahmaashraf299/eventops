@@ -1,0 +1,55 @@
+import Joi from "joi";
+
+export const createEventValidation = Joi.object({
+  title: Joi.string().trim().min(3).max(100).required(),
+
+  description: Joi.string().trim().min(10).required(),
+
+  venue: Joi.string().trim().min(3).required(),
+
+  startsAt: Joi.date().iso().required(),
+
+  endsAt: Joi.date().iso().greater(Joi.ref("startsAt")).required(),
+
+  registrationDeadline: Joi.date().iso().max(Joi.ref("startsAt")).required(),
+
+  capacity: Joi.number().integer().min(1).required(),
+
+  price: Joi.number().min(0).required(),
+
+  visibility: Joi.string().valid("public", "private").required(),
+
+  invitedEmails: Joi.when("visibility", {
+    is: "private",
+    then: Joi.array().items(Joi.string().email()).default([]),
+    otherwise: Joi.array().max(0).default([]),
+  }),
+});
+
+export const updateEventValidation = Joi.object({
+  title: Joi.string().trim().min(3).max(100),
+
+  description: Joi.string().trim().min(10),
+
+  venue: Joi.string().trim().min(3),
+
+  startsAt: Joi.date().iso(),
+
+  endsAt: Joi.date().iso(),
+
+  registrationDeadline: Joi.date().iso(),
+
+  capacity: Joi.number().integer().min(1),
+
+  price: Joi.number().min(0),
+
+  visibility: Joi.string().valid("public", "private"),
+
+  invitedEmails: Joi.when("visibility", {
+    is: "private",
+    then: Joi.array().items(Joi.string().email()),
+    otherwise: Joi.array().max(0),
+  }),
+})
+  .min(1)
+  .unknown(false);
