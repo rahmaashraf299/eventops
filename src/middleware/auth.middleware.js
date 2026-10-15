@@ -23,3 +23,32 @@ export const verifyToken = async (req, res, next) => {
         return res.status(401).json({ message: "Invalid or expired token", error: err.message });
     }
 };
+
+export const verifyOrganizer = (req, res, next) => {
+    console.log("Organizer ID:", req.user?._id);
+    console.log("Organizer email:", req.user?.email);
+    console.log("Organizer status:", req.user?.status);
+    if (!req.user) {
+        return res.status(401).json({
+            success: false,
+            message: "You must be logged in"
+        });
+    }
+
+    if (req.user.role !== 'organizer') {
+        return res.status(403).json({
+            success: false,
+            message: "Only organizers can manage events"
+        });
+    }
+
+    if (req.user.status !== 'approved') {
+        return res.status(403).json({
+            success: false,
+            message: "Your organizer account is not approved yet"
+        });
+    }
+
+    next();
+};
+
