@@ -23,8 +23,10 @@ const userSchema = new mongoose.Schema({
    status: {
     type: String,
     enum: ['pending', 'approved', 'rejected'], 
-    default: 'approved'
-}
+    default: 'pending'
+},
+verificationToken: { type: String },
+    verificationTokenExpires: { type: Date}
 }, { timestamps: true });
 
 export const userModel = mongoose.model("User", userSchema);
