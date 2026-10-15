@@ -5,6 +5,7 @@ import dbConnection from './db/dbConnection.js';
 import { userRoutes } from './src/modules/users/users.routes.js';
 import { organizerApplicationRoutes } from './src/modules/organizerApplication/organizerApplication.routes.js';
 import eventRoutes from './src/modules/event/eventRoutes.js';
+import bookingRoutes from './src/modules/booking/booking.routes.js';
 import { errorHandler } from './src/middleware/auth.middleware.js';
 
 const app = express();
@@ -16,13 +17,15 @@ app.use(express.json());
 app.use(userRoutes);
 app.use(organizerApplicationRoutes);
 app.use('/api/events', eventRoutes);
+app.use('/api', bookingRoutes);
 
+// Home route
 app.get('/', (req, res) => {
     res.send('EventOps Backend is running!');
 });
 
 // Handle routes that do not exist
-app.use((req, res, next) => {
+app.use((req, res) => {
     res.status(404).json({
         success: false,
         message: `Route not found: ${req.method} ${req.originalUrl}`
