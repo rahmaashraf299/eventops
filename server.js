@@ -6,7 +6,6 @@ import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 import cors from 'cors';
 
-// استيراد مسارات الدفع
 import paymentRoutes from './src/modules/payments/paymentRoutes.js';
 
 dotenv.config();
@@ -16,7 +15,6 @@ const app = express();
 app.use(express.json());
 app.use(cors());
 
-// ربط مسارات الدفع بالمشروع
 app.use('/api/payments', paymentRoutes);
 
 const PORT = process.env.PORT || 5000;
