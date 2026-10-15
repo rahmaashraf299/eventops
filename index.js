@@ -3,6 +3,7 @@ import "dotenv/config";
 import express from "express";
 import dbConnection from "./db/dbConnection.js";
 import eventRoutes from "./src/modules/event/eventRoutes.js";
+import bookingRoutes from "./src/modules/booking/booking.routes.js";
 import { userRoutes } from "./src/modules/users/users.routes.js";
 
 const app = express();
@@ -15,6 +16,7 @@ app.get("/", (req, res) => {
 });
 
 app.use("/api/events", eventRoutes);
+app.use("/api", bookingRoutes);
 app.use(userRoutes);
 
 const startServer = async () => {
