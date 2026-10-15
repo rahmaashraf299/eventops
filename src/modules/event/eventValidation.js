@@ -53,3 +53,13 @@ export const updateEventValidation = Joi.object({
 })
   .min(1)
   .unknown(false);
+
+export const eventQueryValidation = Joi.object({
+  search: Joi.string().trim().allow(""),
+  venue: Joi.string().trim().allow(""),
+  minPrice: Joi.number().min(0),
+  maxPrice: Joi.number().min(0),
+  startsAfter: Joi.date().iso(),
+  startsBefore: Joi.date().iso(),
+  sort: Joi.string().valid("price", "-price", "-startsAt"),
+}).unknown(false);
