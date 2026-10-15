@@ -1,9 +1,12 @@
-
 import "dotenv/config";
 import express from "express";
 import dbConnection from "./db/dbConnection.js";
 import eventRoutes from "./src/modules/event/eventRoutes.js";
 import { userRoutes } from "./src/modules/users/users.routes.js";
+import {
+  eventTicketRoutes,
+  bookingTicketRoutes,
+} from "./src/modules/tickets/ticket.routes.js";
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -15,6 +18,8 @@ app.get("/", (req, res) => {
 });
 
 app.use("/api/events", eventRoutes);
+app.use("/api/events", eventTicketRoutes);
+app.use("/api/bookings", bookingTicketRoutes);
 app.use(userRoutes);
 
 const startServer = async () => {
