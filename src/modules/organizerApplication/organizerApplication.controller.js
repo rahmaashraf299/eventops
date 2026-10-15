@@ -1,19 +1,19 @@
 import mongoose from 'mongoose';
 import { organizerApplicationModel } from '../../../db/models/organizerApplicationModel.js';
-import { userModel } from '../../../db/models/userModel.js';
+import { userModel } from '../../../db/models/users.model.js';
 
 /**
  * @desc   Submit an application to become an Organizer
  * @route  POST /api/organizer-applications
  * @access Private (User)
  */
-export const applyForOrganizer = async (req, res) => {
+export const applyForOrganizer = async (req, res, next) => {
     try {
         const userId = req.user._id;
         const { organizationName } = req.body;
 
-        // 1. Check if user exists
         const user = await userModel.findById(userId);
+
         if (!user) {
             return res.status(404).json({
                 success: false,
@@ -21,7 +21,6 @@ export const applyForOrganizer = async (req, res) => {
             });
         }
 
-        // 2. Check if user is already an organizer or admin
         if (user.role === 'organizer' || user.role === 'admin') {
             return res.status(400).json({
                 success: false,
@@ -29,7 +28,6 @@ export const applyForOrganizer = async (req, res) => {
             });
         }
 
-        // 3. Check for existing pending application
         const existingPending = await organizerApplicationModel.findOne({
             user: userId,
             status: 'pending'
@@ -42,7 +40,6 @@ export const applyForOrganizer = async (req, res) => {
             });
         }
 
-        // 4. Create new application
         const newApplication = await organizerApplicationModel.create({
             user: userId,
             organizationName,
@@ -55,11 +52,7 @@ export const applyForOrganizer = async (req, res) => {
             data: newApplication
         });
     } catch (err) {
-        return res.status(500).json({
-            success: false,
-            message: 'Server error while submitting organizer application',
-            error: err.message
-        });
+        next(err);
     }
 };
 
@@ -68,11 +61,12 @@ export const applyForOrganizer = async (req, res) => {
  * @route  GET /api/organizer-applications/me
  * @access Private (User)
  */
-export const getMyApplications = async (req, res) => {
+export const getMyApplications = async (req, res, next) => {
     try {
         const userId = req.user._id;
 
-        const applications = await organizerApplicationModel.find({ user: userId })
+        const applications = await organizerApplicationModel
+            .find({ user: userId })
             .populate('reviewedBy', 'name email')
             .sort({ createdAt: -1 });
 
@@ -82,37 +76,56 @@ export const getMyApplications = async (req, res) => {
             data: applications
         });
     } catch (err) {
-        return res.status(500).json({
-            success: false,
-            message: 'Server error while fetching user applications',
-            error: err.message
-        });
+        next(err);
     }
 };
 
 /**
- * @desc   Get all organizer applications for Admin review
+ * @desc   Get organizer applications for Admin review
  * @route  GET /api/admin/organizer-applications
  * @access Private (Admin only)
  */
-export const getAllApplications = async (req, res) => {
+export const getAllApplications = async (req, res, next) => {
     try {
-        const { status, page = 1, limit = 20 } = req.query;
+        const { status } = req.query;
+
+        const page = Math.max(
+            1,
+            parseInt(req.query.page, 10) || 1
+        );
+
+        const limit = Math.min(
+            100,
+            Math.max(1, parseInt(req.query.limit, 10) || 20)
+        );
+
+        const skip = (page - 1) * limit;
+
+        const allowedStatuses = ['pending', 'approved', 'rejected'];
+
+        if (status && !allowedStatuses.includes(status)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid status filter',
+                allowedStatuses
+            });
+        }
 
         const filter = {};
-        if (status && ['pending', 'approved', 'rejected'].includes(status)) {
+
+        if (status) {
             filter.status = status;
         }
 
-        const skip = (parseInt(page, 10) - 1) * parseInt(limit, 10);
         const total = await organizerApplicationModel.countDocuments(filter);
 
-        const applications = await organizerApplicationModel.find(filter)
+        const applications = await organizerApplicationModel
+            .find(filter)
             .populate('user', 'name email role status')
             .populate('reviewedBy', 'name email')
             .sort({ createdAt: -1 })
             .skip(skip)
-            .limit(parseInt(limit, 10));
+            .limit(limit);
 
         return res.status(200).json({
             success: true,
@@ -120,17 +133,13 @@ export const getAllApplications = async (req, res) => {
             data: applications,
             pagination: {
                 total,
-                page: parseInt(page, 10),
-                limit: parseInt(limit, 10),
-                pages: Math.ceil(total / parseInt(limit, 10))
+                page,
+                limit,
+                pages: Math.ceil(total / limit)
             }
         });
     } catch (err) {
-        return res.status(500).json({
-            success: false,
-            message: 'Server error while fetching applications',
-            error: err.message
-        });
+        next(err);
     }
 };
 
@@ -139,13 +148,12 @@ export const getAllApplications = async (req, res) => {
  * @route  PATCH /api/admin/organizer-applications/:id
  * @access Private (Admin only)
  */
-export const reviewApplication = async (req, res) => {
+export const reviewApplication = async (req, res, next) => {
     try {
         const { id } = req.params;
         const { status, reviewNotes } = req.body;
         const adminId = req.user._id;
 
-        // 1. Validate ObjectId
         if (!mongoose.Types.ObjectId.isValid(id)) {
             return res.status(400).json({
                 success: false,
@@ -153,8 +161,15 @@ export const reviewApplication = async (req, res) => {
             });
         }
 
-        // 2. Find application
+        if (!['approved', 'rejected'].includes(status)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Status must be either approved or rejected'
+            });
+        }
+
         const application = await organizerApplicationModel.findById(id);
+
         if (!application) {
             return res.status(404).json({
                 success: false,
@@ -162,26 +177,41 @@ export const reviewApplication = async (req, res) => {
             });
         }
 
-        // 3. Update application fields
+        if (application.status !== 'pending') {
+            return res.status(400).json({
+                success: false,
+                message: 'This application has already been reviewed'
+            });
+        }
+
+        const applicant = await userModel.findById(application.user);
+
+        if (!applicant) {
+            return res.status(404).json({
+                success: false,
+                message: 'Applicant user not found'
+            });
+        }
+
         application.status = status;
         application.reviewedBy = adminId;
         application.reviewedAt = new Date();
+
         if (reviewNotes !== undefined) {
             application.reviewNotes = reviewNotes;
         }
 
-        await application.save();
-
-        // 4. If approved, promote user role to 'organizer' and status to 'approved'
         if (status === 'approved') {
-            await userModel.findByIdAndUpdate(application.user, {
-                role: 'organizer',
-                status: 'approved'
-            });
+            applicant.role = 'organizer';
+            applicant.status = 'approved';
+
+            await applicant.save();
         }
 
-        // 5. Populate and return updated application
-        const populatedApplication = await organizerApplicationModel.findById(id)
+        await application.save();
+
+        const populatedApplication = await organizerApplicationModel
+            .findById(application._id)
             .populate('user', 'name email role status')
             .populate('reviewedBy', 'name email');
 
@@ -191,11 +221,7 @@ export const reviewApplication = async (req, res) => {
             data: populatedApplication
         });
     } catch (err) {
-        return res.status(500).json({
-            success: false,
-            message: 'Server error while reviewing application',
-            error: err.message
-        });
+        next(err);
     }
 };
 

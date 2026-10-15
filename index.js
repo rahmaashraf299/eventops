@@ -1,25 +1,42 @@
 import 'dotenv/config';
 import express from 'express';
 import dbConnection from './db/dbConnection.js';
+
 import { userRoutes } from './src/modules/users/users.routes.js';
 import { organizerApplicationRoutes } from './src/modules/organizerApplication/organizerApplication.routes.js';
+import { errorHandler } from './src/middleware/auth.middleware.js';
 
 const app = express();
 const port = process.env.PORT || 3000;
 
 app.use(express.json());
 
+// Routes
 app.use(userRoutes);
 app.use(organizerApplicationRoutes);
 
 app.get('/', (req, res) => {
-    res.send('EventOps Backend is running! ');
+    res.send('EventOps Backend is running!');
 });
 
+
+// Handle routes that do not exist
+app.use((req, res, next) => {
+    res.status(404).json({
+        success: false,
+        message: `Route not found: ${req.method} ${req.originalUrl}`
+    });
+});
+
+// Handle other errors
+app.use(errorHandler);
+
+
+// Database Connection and Server
 dbConnection()
     .then(() => {
         const server = app.listen(port, () => {
-            console.log(`Server is running on port ${port} `);
+            console.log(`Server is running on port ${port}`);
         });
 
         server.on('error', (err) => {

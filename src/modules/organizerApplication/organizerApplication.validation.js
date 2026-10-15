@@ -18,3 +18,23 @@ export const reviewApplicationSchema = Joi.object({
         'string.max': 'Review notes cannot exceed 500 characters'
     })
 });
+
+export const validateRequest = (schema) => (req, res, next) => {
+    const { error, value } = schema.validate(req.body, {
+        abortEarly: false
+    });
+
+    if (error) {
+        return res.status(400).json({
+            success: false,
+            message: 'Validation failed',
+            errors: error.details.map(({ message, path }) => ({
+                message,
+                field: path.join('.')
+            }))
+        });
+    }
+
+    req.body = value;
+    next();
+};

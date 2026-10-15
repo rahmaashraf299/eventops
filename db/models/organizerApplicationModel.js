@@ -41,7 +41,6 @@ const organizerApplicationSchema = new mongoose.Schema(
     }
 );
 
-// Index to quickly look up applications by user and status
 organizerApplicationSchema.index({ user: 1, status: 1 });
 
 export const organizerApplicationModel = mongoose.model('OrganizerApplication', organizerApplicationSchema);
