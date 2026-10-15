@@ -16,7 +16,6 @@ export const verifyToken = async (req, res, next) => {
             return res.status(404).json({ message: "User not found" });
         }
 
-
         req.user = user;
         next();
     } catch (err) {
@@ -25,30 +24,24 @@ export const verifyToken = async (req, res, next) => {
 };
 
 export const verifyOrganizer = (req, res, next) => {
-    console.log("Organizer ID:", req.user?._id);
-    console.log("Organizer email:", req.user?.email);
-    console.log("Organizer status:", req.user?.status);
     if (!req.user) {
-        return res.status(401).json({
-            success: false,
-            message: "You must be logged in"
-        });
+        return res.status(401).json({ success: false, message: "You must be logged in" });
     }
-
     if (req.user.role !== 'organizer') {
-        return res.status(403).json({
-            success: false,
-            message: "Only organizers can manage events"
-        });
+        return res.status(403).json({ success: false, message: "Only organizers can manage events" });
     }
-
-    if (req.user.status !== 'approved') {
-        return res.status(403).json({
-            success: false,
-            message: "Your organizer account is not approved yet"
-        });
+    if (req.user.status !== 'active') {
+        return res.status(403).json({ success: false, message: "Your organizer account is not active yet" });
     }
-
     next();
 };
 
+export const verifyAdmin = (req, res, next) => {
+    if (!req.user) {
+        return res.status(401).json({ success: false, message: "You must be logged in" });
+    }
+    if (req.user.role !== 'admin') {
+        return res.status(403).json({ success: false, message: "Access denied: Admins only" });
+    }
+    next();
+};
