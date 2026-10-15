@@ -4,6 +4,7 @@ import dbConnection from './db/dbConnection.js';
 
 import { userRoutes } from './src/modules/users/users.routes.js';
 import { organizerApplicationRoutes } from './src/modules/organizerApplication/organizerApplication.routes.js';
+import eventRoutes from './src/modules/event/eventRoutes.js';
 import { errorHandler } from './src/middleware/auth.middleware.js';
 
 const app = express();
@@ -14,11 +15,11 @@ app.use(express.json());
 // Routes
 app.use(userRoutes);
 app.use(organizerApplicationRoutes);
+app.use('/api/events', eventRoutes);
 
 app.get('/', (req, res) => {
     res.send('EventOps Backend is running!');
 });
-
 
 // Handle routes that do not exist
 app.use((req, res, next) => {
@@ -30,7 +31,6 @@ app.use((req, res, next) => {
 
 // Handle other errors
 app.use(errorHandler);
-
 
 // Database Connection and Server
 dbConnection()

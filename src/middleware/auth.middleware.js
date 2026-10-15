@@ -62,6 +62,31 @@ export const allowRoles = (...roles) => {
     };
 };
 
+export const verifyOrganizer = (req, res, next) => {
+    if (!req.user) {
+        return res.status(401).json({
+            success: false,
+            message: 'You must be logged in'
+        });
+    }
+
+    if (req.user.role !== 'organizer') {
+        return res.status(403).json({
+            success: false,
+            message: 'Only organizers can manage events'
+        });
+    }
+
+    if (req.user.status !== 'approved') {
+        return res.status(403).json({
+            success: false,
+            message: 'Your organizer account is not approved yet'
+        });
+    }
+
+    next();
+};
+
 export const errorHandler = (err, req, res, next) => {
     console.error(err);
 
