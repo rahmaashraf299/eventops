@@ -1,3 +1,4 @@
+
 import Event from "../../../db/models/eventModel.js";
 
 export const createEvent = async (req, res) => {
@@ -45,87 +46,84 @@ export const createEvent = async (req, res) => {
 
 
 export const getAllEvents = async (req, res) => {
-    try {
-        const {
-            search,
-            venue,
-            minPrice,
-            maxPrice,
-            startsAfter,
-            startsBefore,
-            sort
-        } = req.query;
+  try {
+    const {
+      search,
+      venue,
+      minPrice,
+      maxPrice,
+      startsAfter,
+      startsBefore,
+      sort,
+    } = req.validatedQuery;
 
-        const filter = {
-            visibility: 'public',
-            status: 'scheduled'
-        };
+    const filter = {
+      visibility: "public",
+      status: "scheduled",
+    };
 
-        if (search) {
-            filter.title = {
-                $regex: search,
-                $options: 'i'
-            };
-        }
-
-        if (venue) {
-            filter.venue = {
-                $regex: venue,
-                $options: 'i'
-            };
-        }
-
-        if (minPrice !== undefined) {
-            filter.price = {
-                ...filter.price,
-                $gte: Number(minPrice)
-            };
-        }
-
-        if (maxPrice !== undefined) {
-            filter.price = {
-                ...filter.price,
-                $lte: Number(maxPrice)
-            };
-        }
-
-        if (startsAfter || startsBefore) {
-            filter.startsAt = {};
-
-            if (startsAfter) {
-                filter.startsAt.$gte = new Date(startsAfter);
-            }
-
-            if (startsBefore) {
-                filter.startsAt.$lte = new Date(startsBefore);
-            }
-        }
-
-        let sortOption = { startsAt: 1 };
-
-        if (sort === 'price') {
-            sortOption = { price: 1 };
-        } else if (sort === '-price') {
-            sortOption = { price: -1 };
-        } else if (sort === '-startsAt') {
-            sortOption = { startsAt: -1 };
-        }
-
-        const events = await Event.find(filter).sort(sortOption);
-
-        return res.status(200).json({
-            success: true,
-            message: 'Events retrieved successfully',
-            data: events
-        });
-
-    } catch (error) {
-        return res.status(500).json({
-            success: false,
-            message: 'Failed to retrieve events',
-            errors: error.message
-        });
+    if (search) {
+      filter.title = {
+        $regex: search,
+        $options: "i",
+      };
     }
+
+    if (venue) {
+      filter.venue = {
+        $regex: venue,
+        $options: "i",
+      };
+    }
+
+    if (minPrice !== undefined || maxPrice !== undefined) {
+      filter.price = {};
+
+      if (minPrice !== undefined) {
+        filter.price.$gte = minPrice;
+      }
+
+      if (maxPrice !== undefined) {
+        filter.price.$lte = maxPrice;
+      }
+    }
+
+    if (startsAfter || startsBefore) {
+      filter.startsAt = {};
+
+      if (startsAfter) {
+        filter.startsAt.$gte = startsAfter;
+      }
+
+      if (startsBefore) {
+        filter.startsAt.$lte = startsBefore;
+      }
+    }
+
+    let sortOption = { startsAt: 1 };
+
+    if (sort === "price") {
+      sortOption = { price: 1 };
+    } else if (sort === "-price") {
+      sortOption = { price: -1 };
+    } else if (sort === "-startsAt") {
+      sortOption = { startsAt: -1 };
+    }
+
+    const events = await Event.find(filter).sort(sortOption);
+
+    return res.status(200).json({
+      success: true,
+      message: "Events retrieved successfully",
+      data: events,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to retrieve events",
+      errors: error.message,
+    });
+  }
 };
 
 
@@ -219,7 +217,24 @@ export const updateEvent = async (req, res) => {
       });
     }
 
-    Object.assign(event, req.body);
+    const allowedFields = [
+      "title",
+      "description",
+      "venue",
+      "startsAt",
+      "endsAt",
+      "registrationDeadline",
+      "capacity",
+      "price",
+      "visibility",
+      "invitedEmails",
+    ];
+
+    allowedFields.forEach((field) => {
+      if (req.body[field] !== undefined) {
+        event[field] = req.body[field];
+      }
+    });
 
     await event.save();
 
@@ -291,3 +306,4 @@ export const cancelEvent = async (req, res) => {
     });
   }
 };
+

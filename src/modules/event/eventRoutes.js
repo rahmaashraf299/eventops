@@ -8,19 +8,31 @@ import {
   cancelEvent,
 } from "./eventController.js";
 
-import { validateCreateEvent } from "../../middlewares/validateCreateEvent.js";
-import { validateUpdateEvent } from "../../middlewares/validateUpdateEvent.js";
+import { validateCreateEvent } from "../../middleware/validateCreateEvent.js";
+import { validateUpdateEvent } from "../../middleware/validateUpdateEvent.js";
+
+import { verifyToken, verifyOrganizer } from "../../middleware/auth.middleware.js";
+import { validateEventQuery } from "./validateEventQuery.js";
 const router = express.Router();
 
-router.post("/", validateCreateEvent, createEvent);
-
-router.get("/", getAllEvents);
+router.post(
+  "/",
+  verifyToken,
+  verifyOrganizer,
+  validateCreateEvent,
+  createEvent,
+);
+router.get("/", validateEventQuery, getAllEvents);
 
 router.get("/:id", getEventById);
 
-router.patch("/:id", validateUpdateEvent, updateEvent);
-
-router.post("/:id/cancel", cancelEvent);
-
+router.patch(
+  "/:id",
+  verifyToken,
+  verifyOrganizer,
+  validateUpdateEvent,
+  updateEvent,
+);
+router.post("/:id/cancel", verifyToken, verifyOrganizer, cancelEvent);
 
 export default router;
