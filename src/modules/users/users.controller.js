@@ -1,8 +1,4 @@
 import { userModel } from "../../../db/models/users.model.js";
-import bcrypt from 'bcrypt';
-import jwt from 'jsonwebtoken';
-import crypto from 'crypto';
-import { sendEmail } from '../../utilities/email.js';
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
@@ -13,21 +9,15 @@ const signup = async (req, res) => {
         let { name, email, password, role } = req.body;
 
         // Prevent direct admin registration
-        if (role === 'admin') {
-            return res.status(403).json({ message: "Registration as admin is not allowed." });
-        }
-
-        let existingUser = await userModel.findOne({ email });
-        // Prevent admin registration
         if (role === "admin") {
             return res.status(403).json({
                 success: false,
-                message: "Registration as admin is not allowed."
+                message: "Registration as admin is not allowed.",
             });
         }
 
-        // Allow only user and organizer roles
-        if (!["user", "organizer"].includes(role)) {
+        // Allow only participant/user and organizer roles
+        if (!["user", "participant", "organizer"].includes(role)) {
             role = "user";
         }
 
@@ -36,31 +26,20 @@ const signup = async (req, res) => {
         if (existingUser) {
             return res.status(400).json({
                 success: false,
-                message: "User already exists with this email"
+                message: "User already exists with this email",
             });
         }
 
         const passwordHash = bcrypt.hashSync(password, 8);
-        const verificationToken = crypto.randomBytes(32).toString('hex');
-
-        let newUser = await userModel.create({
-            name,
-            email,
-            passwordHash,
-            role: role || 'participant',
-            status: 'pending',
         const verificationToken = crypto.randomBytes(32).toString("hex");
-
-        // Organizers need approval; regular users verify their email
-        const userStatus = "pending";
 
         const newUser = await userModel.create({
             name,
             email,
             passwordHash,
             role,
-            status: userStatus,
-            verificationToken
+            status: "pending",
+            verificationToken,
         });
 
         const verificationUrl =
@@ -76,25 +55,26 @@ const signup = async (req, res) => {
                    style="padding: 10px 20px; background: #007bff; color: white; text-decoration: none; border-radius: 5px;">
                    Verify Email
                 </a>
-            `
+            `,
         });
 
         return res.status(201).json({
             success: true,
-            message: "User registered successfully. Please check your email to verify your account.",
+            message:
+                "User registered successfully. Please check your email to verify your account.",
             data: {
                 id: newUser._id,
                 name: newUser.name,
                 email: newUser.email,
                 role: newUser.role,
-                status: newUser.status
-            }
+                status: newUser.status,
+            },
         });
     } catch (err) {
         return res.status(500).json({
             success: false,
             message: "Error in signup",
-            error: err.message
+            error: err.message,
         });
     }
 };
@@ -103,22 +83,16 @@ const verifyEmail = async (req, res) => {
     try {
         const { token } = req.query;
 
-        const user = await userModel.findOne({ verificationToken: token });
         if (!token) {
-            return res.status(400).send("<h1>Verification token is required.</h1>");
+            return res.redirect("/verified.html?status=missing");
         }
 
-        const user = await userModel.findOne({
-            verificationToken: token
-        });
+        const user = await userModel.findOne({ verificationToken: token });
 
         if (!user) {
-            return res.status(400).send(
-                "<h1>Invalid or expired verification link.</h1>"
-            );
+            return res.redirect("/verified.html?status=invalid");
         }
 
-        user.status = 'active';
         user.verificationToken = undefined;
         user.verificationTokenExpires = undefined;
 
@@ -131,26 +105,10 @@ const verifyEmail = async (req, res) => {
 
         await user.save();
 
-        res.send(`
-            <div style="text-align: center; margin-top: 50px; font-family: Arial;">
-                <h1 style="color: green;">Account Verified Successfully! 🎉</h1>
-                <p>Your account is now active. You can go back to login and access your account.</p>
-                <a href="http://localhost:3000/login" style="padding: 10px 20px; background: #28a745; color: white; text-decoration: none; border-radius: 5px; font-weight: bold;">Back to Login</a>
-        return res.send(`
-            <div style="text-align: center; margin-top: 50px; font-family: Arial;">
-                <h1 style="color: green;">Email Verified Successfully!</h1>
-                <p>Your email has been verified.</p>
-                <p>If your account requires additional approval, it will remain pending until approved.</p>
-                <a href="http://localhost:3000/login"
-                   style="padding: 10px 20px; background: #28a745; color: white; text-decoration: none; border-radius: 5px; font-weight: bold;">
-                   Back to Login
-                </a>
-            </div>
-        `);
+        return res.redirect("/verified.html?status=success");
     } catch (err) {
-        return res.status(500).send(
-            "<h1>Server error during verification.</h1>"
-        );
+        if (res.headersSent) return res.end();
+        return res.redirect("/verified.html?status=error");
     }
 };
 
@@ -158,12 +116,12 @@ const login = async (req, res) => {
     try {
         const { email, password } = req.body;
 
-        const user = await userModel.findOne({ email });
+        const user = await userModel.findOne({ email }).select("+passwordHash");
 
-        let user = await userModel.findOne({ email }).select('+passwordHash');
         if (!user) {
             return res.status(400).json({
-                message: "Invalid email or password"
+                success: false,
+                message: "Invalid email or password",
             });
         }
 
@@ -171,13 +129,15 @@ const login = async (req, res) => {
 
         if (!match) {
             return res.status(400).json({
-                message: "Invalid email or password"
+                success: false,
+                message: "Invalid email or password",
             });
         }
 
         if (user.verificationToken) {
             return res.status(403).json({
-                message: "Please verify your email before logging in."
+                success: false,
+                message: "Please verify your email before logging in.",
             });
         }
 
@@ -186,30 +146,36 @@ const login = async (req, res) => {
 
         if (user.status === "pending" && !verifiedOrganizerAwaitingApproval) {
             return res.status(403).json({
-                message: "Your account is pending verification or approval."
+                success: false,
+                message: "Your account is pending verification or approval.",
             });
         }
 
         if (user.status === "rejected") {
             return res.status(403).json({
-                message: "Your account has been rejected."
+                success: false,
+                message: "Your account has been rejected.",
             });
         }
 
-        if (user.status === 'blocked') {
-            return res.status(403).json({ message: "Your account has been blocked. Contact support." });
+        if (user.status === "blocked") {
+            return res.status(403).json({
+                success: false,
+                message: "Your account has been blocked. Contact support.",
+            });
         }
 
         const token = jwt.sign(
             {
                 id: user._id,
-                role: user.role
+                role: user.role,
             },
             process.env.JWT_SECRET,
             { expiresIn: "1d" }
         );
 
         return res.status(200).json({
+            success: true,
             message: "Login successful",
             token,
             data: {
@@ -217,13 +183,14 @@ const login = async (req, res) => {
                 name: user.name,
                 email: user.email,
                 role: user.role,
-                status: user.status
-            }
+                status: user.status,
+            },
         });
     } catch (err) {
         return res.status(500).json({
+            success: false,
             message: "Error in login",
-            error: err.message
+            error: err.message,
         });
     }
 };
@@ -231,19 +198,21 @@ const login = async (req, res) => {
 const getProfile = async (req, res) => {
     try {
         return res.status(200).json({
+            success: true,
             message: "Profile fetched successfully",
             data: {
                 id: req.user._id,
                 name: req.user.name,
                 email: req.user.email,
                 role: req.user.role,
-                status: req.user.status
-            }
+                status: req.user.status,
+            },
         });
     } catch (err) {
         return res.status(500).json({
+            success: false,
             message: "Error fetching profile",
-            error: err.message
+            error: err.message,
         });
     }
 };
@@ -252,7 +221,6 @@ const updateProfile = async (req, res) => {
     try {
         const { name } = req.body;
 
-        if (name) req.user.name = name;
         if (name) {
             req.user.name = name;
         }
@@ -260,19 +228,21 @@ const updateProfile = async (req, res) => {
         await req.user.save();
 
         return res.status(200).json({
+            success: true,
             message: "Profile updated successfully",
             data: {
                 id: req.user._id,
                 name: req.user.name,
                 email: req.user.email,
                 role: req.user.role,
-                status: req.user.status
-            }
+                status: req.user.status,
+            },
         });
     } catch (err) {
         return res.status(500).json({
+            success: false,
             message: "Error updating profile",
-            error: err.message
+            error: err.message,
         });
     }
 };
@@ -282,5 +252,5 @@ export {
     verifyEmail,
     login,
     getProfile,
-    updateProfile
+    updateProfile,
 };

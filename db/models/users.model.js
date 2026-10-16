@@ -18,12 +18,12 @@ const userSchema = new mongoose.Schema({
     },
     role: {
         type: String,
-        enum: ['participant', 'organizer', 'admin'],
+        enum: ['user', 'participant', 'organizer', 'admin'],
         default: 'participant'
     },
     status: {
         type: String,
-        enum: ['active', 'blocked', 'pending'],
+        enum: ['active', 'pending', 'approved', 'rejected', 'blocked'],
         default: 'active'
     },
     verificationToken: { type: String },

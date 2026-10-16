@@ -5,6 +5,7 @@ import {
   createBooking,
   getMyBookings,
   cancelBooking,
+  cancelMyBooking,
 } from "./booking.controller.js";
 
 import {
@@ -32,6 +33,13 @@ router.post(
 );
 
 router.get("/bookings/me", verifyToken, getMyBookings);
+
+router.patch(
+  "/bookings/:id/cancel",
+  verifyToken,
+  validateCancelBooking,
+  cancelMyBooking,
+);
 
 router.patch(
   "/organizer/bookings/:id/cancel",

@@ -56,12 +56,30 @@ export const getAllEvents = async (req, res) => {
       startsAfter,
       startsBefore,
       sort,
+      organizer,
     } = req.validatedQuery;
 
-    const filter = {
-      visibility: "public",
-      status: "scheduled",
-    };
+    const filter = {};
+
+    const isOwnEventsRequest = organizer === "me";
+
+    if (isOwnEventsRequest) {
+      if (!req.user) {
+        return res.status(401).json({
+          success: false,
+          message: "You must be logged in to view your events",
+        });
+      }
+
+      filter.organizer = req.user._id;
+    } else {
+      filter.visibility = "public";
+      filter.status = "scheduled";
+
+      if (organizer) {
+        filter.organizer = organizer;
+      }
+    }
 
     if (search) {
       filter.title = {
@@ -138,10 +156,7 @@ export const getEventById = async (req, res) => {
       });
     }
 
-    const event = await Event.findOne({
-      _id: id,
-      status: "scheduled",
-    });
+    const event = await Event.findById(id).populate("organizer", "name email");
 
     if (!event) {
       return res.status(404).json({
@@ -151,14 +166,19 @@ export const getEventById = async (req, res) => {
     }
 
     if (event.visibility === "private") {
+      const userId = req.user?._id ? String(req.user._id) : null;
+      const organizerId = event.organizer?._id
+        ? String(event.organizer._id)
+        : String(event.organizer);
       const userEmail = req.user?.email?.trim().toLowerCase();
+      const isOwner = userId && userId === organizerId;
       const isInvited =
         userEmail &&
         (event.invitedEmails || []).some(
           (email) => email.trim().toLowerCase() === userEmail,
         );
 
-      if (!isInvited) {
+      if (!isOwner && !isInvited) {
         return res.status(404).json({
           success: false,
           message: "Event not found",

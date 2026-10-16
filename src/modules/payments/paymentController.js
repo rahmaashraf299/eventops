@@ -1,4 +1,7 @@
 import Transaction from './paymentModel.js';
+import { bookingModel } from '../../../db/models/booking.model.js';
+import { seatModel } from '../../../db/models/seat.model.js';
+import { issueTicketForBooking } from '../tickets/ticket.controller.js';
 
 // POST /api/payments/initiate
 // Initiate a mock payment linked to a booking
@@ -65,13 +68,38 @@ export const mockConfirmPayment = async (req, res) => {
     transaction.status = 'succeeded';
     await transaction.save();
 
-    // NOTE: Person 6 (Tickets) should listen for this confirmation
-    // and generate a Ticket + QR after status becomes 'succeeded'
+    // Confirm the linked booking and issue the ticket (idempotent).
+    let booking = null;
+    let ticket = null;
+
+    try {
+      booking = await bookingModel.findById(transaction.booking);
+
+      if (booking && booking.status === 'pending_payment') {
+        booking.status = 'confirmed';
+        booking.expiresAt = null;
+        await booking.save();
+      }
+
+      if (booking && booking.seat) {
+        await seatModel.updateOne(
+          { _id: booking.seat },
+          { status: 'booked', heldBy: null, holdExpiresAt: null },
+        );
+      }
+
+      if (booking && booking.status === 'confirmed') {
+        ticket = await issueTicketForBooking(booking._id);
+      }
+    } catch (postPaymentError) {
+      // The payment itself succeeded; booking/ticket issues must not fail the response.
+      console.error('Post-payment processing failed:', postPaymentError.message);
+    }
 
     return res.status(200).json({
       success: true,
       message: 'Payment confirmed successfully (mock)',
-      data: transaction,
+      data: { transaction, booking, ticket },
     });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });

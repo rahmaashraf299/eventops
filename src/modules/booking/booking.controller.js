@@ -1,9 +1,12 @@
 import Event from "../../../db/models/eventModel.js";
 import { seatModel } from "../../../db/models/seat.model.js";
 import { bookingModel } from "../../../db/models/booking.model.js";
+import Ticket from "../../../db/models/ticket.model.js";
+import Transaction from "../payments/paymentModel.js";
 
 const HOLD_MINUTES = 10;
 const ACTIVE_STATUSES = ["pending_payment", "confirmed"];
+const OBJECT_ID = /^[0-9a-fA-F]{24}$/;
 
 const ensureSeats = async (event) => {
   const existing = await seatModel.countDocuments({ event: event._id });
@@ -65,12 +68,13 @@ export const getSeats = async (req, res) => {
         });
       }
 
+      const isOwner = String(event.organizer) === String(req.user._id);
       const userEmail = req.user.email?.trim().toLowerCase();
       const isInvited = (event.invitedEmails || []).some(
         (email) => email.trim().toLowerCase() === userEmail,
       );
 
-      if (!isInvited) {
+      if (!isOwner && !isInvited) {
         return res.status(403).json({
           success: false,
           message: "You are not invited to this private event",
@@ -81,7 +85,10 @@ export const getSeats = async (req, res) => {
     await ensureSeats(event);
     await releaseExpiredHolds({ event: event._id });
 
-    const seats = await seatModel.find({ event: event._id }).sort({ label: 1 });
+    const seats = await seatModel
+      .find({ event: event._id })
+      .collation({ locale: "en", numericOrdering: true })
+      .sort({ label: 1 });
 
     return res.status(200).json({
       success: true,
@@ -127,12 +134,13 @@ export const createBooking = async (req, res) => {
     }
 
     if (event.visibility === "private") {
+      const isOwner = String(event.organizer) === String(req.user._id);
       const userEmail = req.user.email?.trim().toLowerCase();
       const isInvited = (event.invitedEmails || []).some(
         (email) => email.trim().toLowerCase() === userEmail,
       );
 
-      if (!isInvited) {
+      if (!isOwner && !isInvited) {
         return res.status(403).json({
           success: false,
           message: "You are not invited to this private event",
@@ -290,6 +298,121 @@ export const cancelBooking = async (req, res) => {
       success: true,
       message: "Booking cancelled successfully",
       data: booking,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to cancel booking",
+      errors: error.message,
+    });
+  }
+};
+
+/**
+ * PATCH /api/bookings/:id/cancel
+ * A participant cancels their OWN booking and gets refunded (mock):
+ * frees the seat, revokes the ticket, marks the payment transaction as
+ * refunded, and moves the booking to "cancelled". Allowed only until the
+ * registration deadline (falls back to the event start when none is set).
+ */
+export const cancelMyBooking = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!OBJECT_ID.test(id)) {
+      return res.status(400).json({ success: false, message: "Invalid booking ID" });
+    }
+
+    const booking = await bookingModel.findById(id);
+    if (!booking) {
+      return res.status(404).json({ success: false, message: "Booking not found" });
+    }
+
+    if (String(booking.user) !== String(req.user._id)) {
+      return res.status(403).json({
+        success: false,
+        message: "You can only cancel your own booking",
+      });
+    }
+
+    if (["cancelled", "expired"].includes(booking.status)) {
+      return res.status(400).json({
+        success: false,
+        message: `This booking is already ${booking.status}`,
+      });
+    }
+
+    const event = await Event.findById(booking.event);
+    if (!event) {
+      return res.status(404).json({ success: false, message: "Event not found" });
+    }
+
+    if (event.status === "cancelled") {
+      return res.status(400).json({
+        success: false,
+        message: "This event has been cancelled by the organizer",
+      });
+    }
+
+    // Cancellation window: until the registration deadline (or the event start).
+    const deadline = new Date(event.registrationDeadline || event.startsAt);
+    if (!isNaN(deadline) && new Date() > deadline) {
+      return res.status(400).json({
+        success: false,
+        message: "You can no longer cancel this booking — the registration deadline has passed",
+      });
+    }
+
+    // A ticket already scanned at the door can't be refunded.
+    const ticket = await Ticket.findOne({ booking: booking._id });
+    if (ticket && ticket.status === "used") {
+      return res.status(409).json({
+        success: false,
+        message: "This ticket has already been checked in and can't be cancelled",
+      });
+    }
+
+    // Release the seat.
+    if (booking.seat) {
+      await seatModel.updateOne(
+        { _id: booking.seat },
+        { status: "available", heldBy: null, holdExpiresAt: null },
+      );
+    }
+
+    // Revoke the ticket (if any).
+    if (ticket && ticket.status !== "revoked") {
+      ticket.status = "revoked";
+      await ticket.save();
+    }
+
+    // Refund the mock payment (succeeded → refunded, pending → failed).
+    let refunded = false;
+    let refundAmount = 0;
+    const tx = await Transaction.findOne({ booking: booking._id }).sort({ createdAt: -1 });
+    if (tx) {
+      if (tx.status === "succeeded") {
+        tx.status = "refunded";
+        tx.refundedAt = new Date();
+        await tx.save();
+        refunded = true;
+        refundAmount = tx.net ?? tx.amount ?? 0;
+      } else if (tx.status === "pending") {
+        tx.status = "failed";
+        await tx.save();
+      }
+    }
+
+    booking.status = "cancelled";
+    booking.expiresAt = null;
+    await booking.save();
+
+    return res.status(200).json({
+      success: true,
+      message: refunded
+        ? "Booking cancelled — your payment has been refunded"
+        : "Booking cancelled successfully",
+      data: { booking, refunded, amount: refundAmount },
     });
   } catch (error) {
     return res.status(500).json({

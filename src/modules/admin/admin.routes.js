@@ -3,11 +3,15 @@ import express from "express";
 import { verifyToken, verifyAdmin } from "../../middleware/auth.middleware.js";
 import {
   getAllEvents,
+  getAllUsers,
   getDashboardStats,
   updateUserStatus,
 } from "./admin.controller.js";
 
 const router = express.Router();
+
+// List / search users
+router.get("/api/admin/users", verifyToken, verifyAdmin, getAllUsers);
 
 // Update user status
 router.patch(

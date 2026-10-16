@@ -32,8 +32,7 @@ router.post(
   validateCreateEvent,
   createEvent,
 );
-
-router.get("/", validateEventQuery, getAllEvents);
+router.get("/", verifyTokenIfPresent, validateEventQuery, getAllEvents);
 
 router.get("/:id", verifyTokenIfPresent, getEventById);
 

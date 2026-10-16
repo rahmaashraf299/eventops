@@ -70,6 +70,10 @@ export const eventQueryValidation = Joi.object({
   startsAfter: Joi.date().iso(),
   startsBefore: Joi.date().iso(),
   sort: Joi.string().valid("price", "-price", "-startsAt"),
+  organizer: Joi.alternatives().try(
+    Joi.string().valid("me"),
+    Joi.string().length(24).hex(),
+  ),
 }).unknown(false);
 
 export const inviteUsersValidation = Joi.object({

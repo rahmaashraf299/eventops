@@ -73,17 +73,12 @@ export const allowRoles = (...roles) => {
 
 export const verifyOrganizer = (req, res, next) => {
     if (!req.user) {
-        return res.status(401).json({ success: false, message: "You must be logged in" });
         return res.status(401).json({
             success: false,
             message: 'You must be logged in'
         });
     }
     if (req.user.role !== 'organizer') {
-        return res.status(403).json({ success: false, message: "Only organizers can manage events" });
-    }
-    if (req.user.status !== 'active') {
-        return res.status(403).json({ success: false, message: "Your organizer account is not active yet" });
         return res.status(403).json({
             success: false,
             message: 'Only organizers can manage events'
