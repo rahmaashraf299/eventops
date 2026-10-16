@@ -1,15 +1,10 @@
-node_modules
-.env
-.env
-.DS_Store
+
 npm-debug.log*
 node_modules/
+.env
+.DS_Store
 
 # Test files
 /test/
 *.test.js
 *.spec.js
-!/test/
-/test/*
-!/test/admin-endpoints.test.js
-!/test/private-event-invitations.test.js
