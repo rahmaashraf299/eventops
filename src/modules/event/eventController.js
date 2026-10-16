@@ -1,6 +1,8 @@
 
 import Event from "../../../db/models/eventModel.js";
 
+const normalizeEmail = (email) => email.trim().toLowerCase();
+
 export const createEvent = async (req, res) => {
   try {
     const {
@@ -139,17 +141,27 @@ export const getEventById = async (req, res) => {
       });
     }
 
-    const event = await Event.findOne({
-      _id: id,
-      visibility: "public",
-      status: "scheduled",
-    });
+    const event = await Event.findOne({ _id: id, status: "scheduled" });
 
     if (!event) {
       return res.status(404).json({
         success: false,
         message: "Event not found",
       });
+    }
+
+    if (event.visibility === "private") {
+      const userEmail = req.user?.email?.trim().toLowerCase();
+      const isInvited = userEmail && (event.invitedEmails || []).some(
+        (email) => email.trim().toLowerCase() === userEmail,
+      );
+
+      if (!isInvited) {
+        return res.status(404).json({
+          success: false,
+          message: "Event not found",
+        });
+      }
     }
 
     return res.status(200).json({
@@ -217,6 +229,36 @@ export const updateEvent = async (req, res) => {
       });
     }
 
+    const resultingVisibility = req.body.visibility ?? event.visibility;
+    const hasInvitationChanges =
+      (req.body.invitedEmails?.length ?? 0) > 0 ||
+      (req.body.removeInvitedEmails?.length ?? 0) > 0;
+
+    if (hasInvitationChanges && resultingVisibility !== "private") {
+      return res.status(400).json({
+        success: false,
+        message: "Invitations can only be changed for private events",
+      });
+    }
+
+    if (req.body.visibility === "public") {
+      event.invitedEmails = [];
+    } else if (hasInvitationChanges) {
+      const invitedEmails = new Set(
+        (event.invitedEmails || []).map(normalizeEmail),
+      );
+
+      for (const email of req.body.invitedEmails || []) {
+        invitedEmails.add(normalizeEmail(email));
+      }
+
+      for (const email of req.body.removeInvitedEmails || []) {
+        invitedEmails.delete(normalizeEmail(email));
+      }
+
+      event.invitedEmails = [...invitedEmails];
+    }
+
     const allowedFields = [
       "title",
       "description",
@@ -227,7 +269,6 @@ export const updateEvent = async (req, res) => {
       "capacity",
       "price",
       "visibility",
-      "invitedEmails",
     ];
 
     allowedFields.forEach((field) => {

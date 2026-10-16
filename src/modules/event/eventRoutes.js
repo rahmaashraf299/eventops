@@ -17,7 +17,11 @@ import {
 
 
 
-import { verifyToken, verifyOrganizer } from "../../middleware/auth.middleware.js";
+import {
+  verifyToken,
+  verifyTokenIfPresent,
+  verifyOrganizer,
+} from "../../middleware/auth.middleware.js";
 const router = express.Router();
 
 router.post(
@@ -29,7 +33,7 @@ router.post(
 );
 router.get("/", validateEventQuery, getAllEvents);
 
-router.get("/:id", getEventById);
+router.get("/:id", verifyTokenIfPresent, getEventById);
 
 router.patch(
   "/:id",

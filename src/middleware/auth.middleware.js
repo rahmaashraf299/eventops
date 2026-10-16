@@ -48,6 +48,16 @@ export const verifyToken = async (req, res, next) => {
     }
 };
 
+export const verifyTokenIfPresent = (req, res, next) => {
+    const authHeader = req.headers.authorization;
+
+    if (!authHeader) {
+        return next();
+    }
+
+    return verifyToken(req, res, next);
+};
+
 export const allowRoles = (...roles) => {
     return (req, res, next) => {
         if (!req.user || !roles.includes(req.user.role)) {

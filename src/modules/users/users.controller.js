@@ -100,6 +100,7 @@ const verifyEmail = async (req, res) => {
         }
 
         user.verificationToken = undefined;
+        user.verificationTokenExpires = undefined;
 
         // Keep organizers pending until the organizer approval process finishes
         if (user.role === "organizer") {
@@ -148,7 +149,16 @@ const login = async (req, res) => {
             });
         }
 
-        if (user.status === "pending") {
+        if (user.verificationToken) {
+            return res.status(403).json({
+                message: "Please verify your email before logging in."
+            });
+        }
+
+        const verifiedOrganizerAwaitingApproval =
+            user.role === "organizer" && user.status === "pending";
+
+        if (user.status === "pending" && !verifiedOrganizerAwaitingApproval) {
             return res.status(403).json({
                 message: "Your account is pending verification or approval."
             });
