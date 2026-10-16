@@ -7,8 +7,7 @@ const userRoutes = Router();
 
 userRoutes.post('/api/auth/signup', validate(signupSchema), signup);
 userRoutes.get('/api/auth/verify-email', verifyEmail);
-userRoutes.post('/api/auth/login',validate(loginSchema), login);
-
+userRoutes.post('/api/auth/login', validate(loginSchema), login);
 
 userRoutes.get('/api/users/me', verifyToken, getProfile);
 userRoutes.put('/api/users/me', verifyToken, validate(updateProfileSchema), updateProfile);
