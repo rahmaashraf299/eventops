@@ -11,6 +11,10 @@ import { organizerApplicationRoutes } from './src/modules/organizerApplication/o
 import adminRoutes from './src/modules/admin/admin.routes.js';
 import eventRoutes from './src/modules/event/eventRoutes.js';
 import bookingRoutes from './src/modules/booking/booking.routes.js';
+import {
+  eventTicketRoutes,
+  bookingTicketRoutes,
+} from './src/modules/tickets/ticket.routes.js';
 import { errorHandler } from './src/middleware/auth.middleware.js';
 
 const app = express();
@@ -46,6 +50,8 @@ app.use(userRoutes);
 app.use(organizerApplicationRoutes);
 app.use(adminRoutes);
 app.use('/api/events', eventRoutes);
+app.use('/api/events', eventTicketRoutes);
+app.use('/api/bookings', bookingTicketRoutes);
 app.use('/api', bookingRoutes);
 
 // Home route
