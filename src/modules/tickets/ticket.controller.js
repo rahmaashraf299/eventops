@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import ExcelJS from "exceljs";
 import QRCode from "qrcode";
-import Ticket from "./ticket.model.js";
+import Ticket from "../../../db/models/ticket.model.js";
 import Event from "../../../db/models/eventModel.js";
 import { bookingModel as Booking } from "../../../db/models/booking.model.js";
 import { seatModel } from "../../../db/models/seat.model.js";
@@ -174,7 +174,7 @@ export const checkInTicket = async (req, res) => {
     const checkedIn = await Ticket.findOneAndUpdate(
       { _id: ticket._id, status: "valid" },
       { $set: { status: "used", checkedInAt: new Date() } },
-      { new: true },
+      { returnDocument: "after" },
     );
 
     if (!checkedIn) {

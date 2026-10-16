@@ -1,6 +1,6 @@
 import express from "express";
 import { verifyToken, verifyOrganizer } from "../../middleware/auth.middleware.js";
-import { validateCheckIn } from "./ticket.validation.js";
+import { validateCheckIn } from "../../middleware/ticketMiddleware.js";
 import {
   getBookingTicket,
   checkInTicket,
