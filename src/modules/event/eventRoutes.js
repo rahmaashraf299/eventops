@@ -1,3 +1,4 @@
+
 import express from "express";
 
 import {
@@ -6,22 +7,22 @@ import {
   getEventById,
   updateEvent,
   cancelEvent,
+  inviteUsersToEvent,
 } from "./eventController.js";
-
 
 import {
   validateCreateEvent,
   validateUpdateEvent,
   validateEventQuery,
+  validateInviteUsers,
 } from "../../middleware/eventMiddleware.js";
-
-
 
 import {
   verifyToken,
   verifyTokenIfPresent,
   verifyOrganizer,
 } from "../../middleware/auth.middleware.js";
+
 const router = express.Router();
 
 router.post(
@@ -31,6 +32,7 @@ router.post(
   validateCreateEvent,
   createEvent,
 );
+
 router.get("/", validateEventQuery, getAllEvents);
 
 router.get("/:id", verifyTokenIfPresent, getEventById);
@@ -42,6 +44,16 @@ router.patch(
   validateUpdateEvent,
   updateEvent,
 );
+
 router.post("/:id/cancel", verifyToken, verifyOrganizer, cancelEvent);
+
+// Added: Invite users to a private event
+router.post(
+  "/:id/invites",
+  verifyToken,
+  verifyOrganizer,
+  validateInviteUsers,
+  inviteUsersToEvent,
+);
 
 export default router;

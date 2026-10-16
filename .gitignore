@@ -7,3 +7,7 @@ node_modules/
 /test/
 *.test.js
 *.spec.js
+!/test/
+/test/*
+!/test/admin-endpoints.test.js
+!/test/private-event-invitations.test.js
