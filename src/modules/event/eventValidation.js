@@ -1,5 +1,7 @@
 import Joi from "joi";
 
+const invitedEmail = Joi.string().trim().lowercase().email();
+
 export const createEventValidation = Joi.object({
   title: Joi.string().trim().min(3).max(100).required(),
 
@@ -21,7 +23,7 @@ export const createEventValidation = Joi.object({
 
   invitedEmails: Joi.when("visibility", {
     is: "private",
-    then: Joi.array().items(Joi.string().email()).default([]),
+    then: Joi.array().items(invitedEmail).unique().default([]),
     otherwise: Joi.array().max(0).default([]),
   }),
 });
@@ -46,9 +48,15 @@ export const updateEventValidation = Joi.object({
   visibility: Joi.string().valid("public", "private"),
 
   invitedEmails: Joi.when("visibility", {
-    is: "private",
-    then: Joi.array().items(Joi.string().email()),
-    otherwise: Joi.array().max(0),
+    is: "public",
+    then: Joi.array().max(0),
+    otherwise: Joi.array().items(invitedEmail).unique(),
+  }),
+
+  removeInvitedEmails: Joi.when("visibility", {
+    is: "public",
+    then: Joi.array().max(0),
+    otherwise: Joi.array().items(invitedEmail).unique(),
   }),
 })
   .min(1)
@@ -63,3 +71,13 @@ export const eventQueryValidation = Joi.object({
   startsBefore: Joi.date().iso(),
   sort: Joi.string().valid("price", "-price", "-startsAt"),
 }).unknown(false);
+
+export const inviteUsersValidation = Joi.object({
+  invitedEmails: Joi.array().items(invitedEmail).min(1).unique().required(),
+})
+  .unknown(false)
+  .required();
+
+export const inviteEventIdValidation = Joi.string()
+  .pattern(/^[0-9a-fA-F]{24}$/)
+  .required();
