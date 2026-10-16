@@ -4,6 +4,7 @@ import dbConnection from './db/dbConnection.js';
 
 import { userRoutes } from './src/modules/users/users.routes.js';
 import { organizerApplicationRoutes } from './src/modules/organizerApplication/organizerApplication.routes.js';
+import adminRoutes from './src/modules/admin/admin.routes.js';
 import eventRoutes from './src/modules/event/eventRoutes.js';
 import bookingRoutes from './src/modules/booking/booking.routes.js';
 import { errorHandler } from './src/middleware/auth.middleware.js';
@@ -16,6 +17,7 @@ app.use(express.json());
 // Routes
 app.use(userRoutes);
 app.use(organizerApplicationRoutes);
+app.use(adminRoutes);
 app.use('/api/events', eventRoutes);
 app.use('/api', bookingRoutes);
 

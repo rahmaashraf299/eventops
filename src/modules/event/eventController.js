@@ -46,7 +46,6 @@ export const createEvent = async (req, res) => {
   }
 };
 
-
 export const getAllEvents = async (req, res) => {
   try {
     const {
@@ -128,8 +127,6 @@ export const getAllEvents = async (req, res) => {
   }
 };
 
-
-
 export const getEventById = async (req, res) => {
   try {
     const { id } = req.params;
@@ -141,7 +138,10 @@ export const getEventById = async (req, res) => {
       });
     }
 
-    const event = await Event.findOne({ _id: id, status: "scheduled" });
+    const event = await Event.findOne({
+      _id: id,
+      status: "scheduled",
+    });
 
     if (!event) {
       return res.status(404).json({
@@ -152,9 +152,11 @@ export const getEventById = async (req, res) => {
 
     if (event.visibility === "private") {
       const userEmail = req.user?.email?.trim().toLowerCase();
-      const isInvited = userEmail && (event.invitedEmails || []).some(
-        (email) => email.trim().toLowerCase() === userEmail,
-      );
+      const isInvited =
+        userEmail &&
+        (event.invitedEmails || []).some(
+          (email) => email.trim().toLowerCase() === userEmail,
+        );
 
       if (!isInvited) {
         return res.status(404).json({
@@ -348,3 +350,59 @@ export const cancelEvent = async (req, res) => {
   }
 };
 
+// Added: Invite users to a private event
+export const inviteUsersToEvent = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { invitedEmails } = req.body;
+
+    if (!/^[0-9a-fA-F]{24}$/.test(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid event ID",
+      });
+    }
+
+    const event = await Event.findOne({
+      _id: id,
+      organizer: req.user._id,
+    });
+
+    if (!event) {
+      return res.status(404).json({
+        success: false,
+        message: "Event not found",
+      });
+    }
+
+    if (event.visibility !== "private") {
+      return res.status(400).json({
+        success: false,
+        message: "Invitations are only allowed for private events",
+      });
+    }
+
+    const emails = new Set(
+      (event.invitedEmails || []).map(normalizeEmail),
+    );
+
+    for (const email of invitedEmails) {
+      emails.add(normalizeEmail(email));
+    }
+
+    event.invitedEmails = [...emails];
+    await event.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Users invited successfully",
+      data: event,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to invite users",
+      errors: error.message,
+    });
+  }
+};

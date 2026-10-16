@@ -71,3 +71,13 @@ export const eventQueryValidation = Joi.object({
   startsBefore: Joi.date().iso(),
   sort: Joi.string().valid("price", "-price", "-startsAt"),
 }).unknown(false);
+
+export const inviteUsersValidation = Joi.object({
+  invitedEmails: Joi.array().items(invitedEmail).min(1).unique().required(),
+})
+  .unknown(false)
+  .required();
+
+export const inviteEventIdValidation = Joi.string()
+  .pattern(/^[0-9a-fA-F]{24}$/)
+  .required();

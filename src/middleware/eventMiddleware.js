@@ -3,6 +3,8 @@ import {
   createEventValidation,
   updateEventValidation,
   eventQueryValidation,
+  inviteUsersValidation,
+  inviteEventIdValidation,
 } from "../modules/event/eventValidation.js";
 
 
@@ -83,5 +85,27 @@ export const validateUpdateEvent = (req, res, next) => {
 
   req.body = value;
 
+  next();
+};
+
+export const validateInviteUsers = (req, res, next) => {
+  const { error: idError } = inviteEventIdValidation.validate(req.params?.id);
+  const { error, value } = inviteUsersValidation.validate(req.body, {
+    abortEarly: false,
+    convert: true,
+  });
+
+  if (idError || error) {
+    return res.status(400).json({
+      success: false,
+      message: "Invalid invitation data",
+      errors: [
+        ...(idError ? ["Event ID must be a 24-character hexadecimal ObjectId"] : []),
+        ...(error ? error.details.map((detail) => detail.message) : []),
+      ],
+    });
+  }
+
+  req.body = value;
   next();
 };
