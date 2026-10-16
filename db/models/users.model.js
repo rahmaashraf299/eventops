@@ -13,20 +13,21 @@ const userSchema = new mongoose.Schema({
     },
     passwordHash: {
         type: String,
-        required: true
+        required: true,
+        select: false
     },
     role: {
         type: String,
-        enum: ['user', 'organizer', 'admin'],
-        default: 'user'
+        enum: ['participant', 'organizer', 'admin'],
+        default: 'participant'
     },
-   status: {
-    type: String,
-    enum: ['pending', 'approved', 'rejected'], 
-    default: 'pending'
-},
-verificationToken: { type: String },
-    verificationTokenExpires: { type: Date}
+    status: {
+        type: String,
+        enum: ['active', 'blocked', 'pending'],
+        default: 'active'
+    },
+    verificationToken: { type: String },
+    verificationTokenExpires: { type: Date }
 }, { timestamps: true });
 
 export const userModel = mongoose.model("User", userSchema);

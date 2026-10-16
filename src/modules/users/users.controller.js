@@ -1,4 +1,8 @@
 import { userModel } from "../../../db/models/users.model.js";
+import bcrypt from 'bcrypt';
+import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
+import { sendEmail } from '../../utilities/email.js';
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
@@ -8,6 +12,12 @@ const signup = async (req, res) => {
     try {
         let { name, email, password, role } = req.body;
 
+        // Prevent direct admin registration
+        if (role === 'admin') {
+            return res.status(403).json({ message: "Registration as admin is not allowed." });
+        }
+
+        let existingUser = await userModel.findOne({ email });
         // Prevent admin registration
         if (role === "admin") {
             return res.status(403).json({
@@ -31,6 +41,14 @@ const signup = async (req, res) => {
         }
 
         const passwordHash = bcrypt.hashSync(password, 8);
+        const verificationToken = crypto.randomBytes(32).toString('hex');
+
+        let newUser = await userModel.create({
+            name,
+            email,
+            passwordHash,
+            role: role || 'participant',
+            status: 'pending',
         const verificationToken = crypto.randomBytes(32).toString("hex");
 
         // Organizers need approval; regular users verify their email
@@ -85,6 +103,7 @@ const verifyEmail = async (req, res) => {
     try {
         const { token } = req.query;
 
+        const user = await userModel.findOne({ verificationToken: token });
         if (!token) {
             return res.status(400).send("<h1>Verification token is required.</h1>");
         }
@@ -99,6 +118,7 @@ const verifyEmail = async (req, res) => {
             );
         }
 
+        user.status = 'active';
         user.verificationToken = undefined;
         user.verificationTokenExpires = undefined;
 
@@ -111,6 +131,11 @@ const verifyEmail = async (req, res) => {
 
         await user.save();
 
+        res.send(`
+            <div style="text-align: center; margin-top: 50px; font-family: Arial;">
+                <h1 style="color: green;">Account Verified Successfully! 🎉</h1>
+                <p>Your account is now active. You can go back to login and access your account.</p>
+                <a href="http://localhost:3000/login" style="padding: 10px 20px; background: #28a745; color: white; text-decoration: none; border-radius: 5px; font-weight: bold;">Back to Login</a>
         return res.send(`
             <div style="text-align: center; margin-top: 50px; font-family: Arial;">
                 <h1 style="color: green;">Email Verified Successfully!</h1>
@@ -135,6 +160,7 @@ const login = async (req, res) => {
 
         const user = await userModel.findOne({ email });
 
+        let user = await userModel.findOne({ email }).select('+passwordHash');
         if (!user) {
             return res.status(400).json({
                 message: "Invalid email or password"
@@ -168,6 +194,10 @@ const login = async (req, res) => {
             return res.status(403).json({
                 message: "Your account has been rejected."
             });
+        }
+
+        if (user.status === 'blocked') {
+            return res.status(403).json({ message: "Your account has been blocked. Contact support." });
         }
 
         const token = jwt.sign(
@@ -222,6 +252,7 @@ const updateProfile = async (req, res) => {
     try {
         const { name } = req.body;
 
+        if (name) req.user.name = name;
         if (name) {
             req.user.name = name;
         }
