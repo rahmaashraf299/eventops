@@ -42,6 +42,14 @@ const organizerApplicationSchema = new mongoose.Schema(
 );
 
 organizerApplicationSchema.index({ user: 1, status: 1 });
+organizerApplicationSchema.index(
+    { user: 1 },
+    {
+        unique: true,
+        partialFilterExpression: { status: 'pending' },
+        name: 'one_pending_organizer_application_per_user'
+    }
+);
 
 export const organizerApplicationModel = mongoose.model('OrganizerApplication', organizerApplicationSchema);
 export default organizerApplicationModel;

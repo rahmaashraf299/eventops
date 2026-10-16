@@ -21,10 +21,31 @@ export const applyForOrganizer = async (req, res, next) => {
             });
         }
 
-        if (user.role === 'organizer' || user.role === 'admin') {
+        if (user.verificationToken) {
+            return res.status(403).json({
+                success: false,
+                message: 'Please verify your email before applying'
+            });
+        }
+
+        if (
+            user.role === 'admin' ||
+            (user.role === 'organizer' && user.status === 'approved')
+        ) {
             return res.status(400).json({
                 success: false,
                 message: `You are already registered as an ${user.role}`
+            });
+        }
+
+        const isEligibleApplicant =
+            (user.role === 'user' && user.status === 'approved') ||
+            (user.role === 'organizer' && user.status === 'pending');
+
+        if (!isEligibleApplicant) {
+            return res.status(403).json({
+                success: false,
+                message: 'Verify your email and account before applying'
             });
         }
 
@@ -52,6 +73,12 @@ export const applyForOrganizer = async (req, res, next) => {
             data: newApplication
         });
     } catch (err) {
+        if (err.code === 11000) {
+            return res.status(409).json({
+                success: false,
+                message: 'You already have a pending organizer application under review'
+            });
+        }
         next(err);
     }
 };

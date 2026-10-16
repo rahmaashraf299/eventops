@@ -15,12 +15,13 @@ import {
 
 import {
   verifyToken,
+  verifyTokenIfPresent,
   verifyOrganizer,
 } from "../../middleware/auth.middleware.js";
 
 const router = express.Router();
 
-router.get("/events/:id/seats", validateEventId, getSeats);
+router.get("/events/:id/seats", verifyTokenIfPresent, validateEventId, getSeats);
 
 router.post(
   "/events/:id/bookings",

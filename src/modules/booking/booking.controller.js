@@ -57,6 +57,27 @@ export const getSeats = async (req, res) => {
       });
     }
 
+    if (event.visibility === "private") {
+      if (!req.user) {
+        return res.status(401).json({
+          success: false,
+          message: "You must be logged in to access this private event",
+        });
+      }
+
+      const userEmail = req.user.email?.trim().toLowerCase();
+      const isInvited = (event.invitedEmails || []).some(
+        (email) => email.trim().toLowerCase() === userEmail,
+      );
+
+      if (!isInvited) {
+        return res.status(403).json({
+          success: false,
+          message: "You are not invited to this private event",
+        });
+      }
+    }
+
     await ensureSeats(event);
     await releaseExpiredHolds({ event: event._id });
 
@@ -105,14 +126,18 @@ export const createBooking = async (req, res) => {
       });
     }
 
-    if (
-      event.visibility === "private" &&
-      !event.invitedEmails.includes(req.user.email)
-    ) {
-      return res.status(403).json({
-        success: false,
-        message: "You are not invited to this event",
-      });
+    if (event.visibility === "private") {
+      const userEmail = req.user.email?.trim().toLowerCase();
+      const isInvited = (event.invitedEmails || []).some(
+        (email) => email.trim().toLowerCase() === userEmail,
+      );
+
+      if (!isInvited) {
+        return res.status(403).json({
+          success: false,
+          message: "You are not invited to this private event",
+        });
+      }
     }
 
     await ensureSeats(event);
