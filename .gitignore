@@ -8,8 +8,8 @@ node_modules/
 *.test.js
 *.spec.js
 
-# Frontend (kept local, not pushed to GitHub)
-Front/
+# Frontend mockup images (kept local)
+Front/*.png
 
 # Docs / notes (kept local, not pushed to GitHub)
 pages.md
